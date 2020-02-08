@@ -61,12 +61,14 @@ public class Robot extends TimedRobot {
 
   private double Time = 0;
 
+  private static int encoderPositionTele = 0;
+
   private int PID_IDX = 0;
   private int CAN_TIMEOUT_MS = 10;
 
 
-  private double Encoder_Pos = getPositionInches();
-  private double Left_To_Right_Offset_Inches;
+  // private double Encoder_Pos = 0; //getPositionInches();
+  // private double Left_To_Right_Offset_Inches;
   private double Top_Speed;
   public int Right_Encoder_Pos = 0;
   public int Left_Encoder_Pos = 0;
@@ -75,10 +77,23 @@ public class Robot extends TimedRobot {
   public static int whatPath;
   public static int spin = 0;
 
+  public static double lP = 1.0;
+  public static double lI = 0;
+  public static double lD = 0;
+  public static double lV = 1;
+  public static double lA = 0;
+  public static double rP = 1.0;
+  public static double rI = 0;
+  public static double rD = 0;
+  public static double rV = 1;
+  public static double rA = 0;
+
   // private double timeAtStop = 10;
 
   @Override
   public void robotInit() {
+    System.out.println("We are in robotInit");
+
     Left = new TalonSRX(leftCanNum); //new DifferentialDrive(new PWMVictorSPX(0), new PWMVictorSPX(1));
     LFollower1 = new TalonSRX(lFollowerCanNum1);
     LFollower2 = new TalonSRX(lFollowerCanNum2);
@@ -91,36 +106,63 @@ public class Robot extends TimedRobot {
     RFollower1.set(ControlMode.Follower, rightCanNum);
     RFollower2.set(ControlMode.Follower, rightCanNum);
 
+    Left.setNeutralMode(NeutralMode.Brake);
+    Right.setNeutralMode(NeutralMode.Brake);
+
     Left.configSelectedFeedbackSensor(FeedbackDevice.QuadEncoder, PID_IDX, CAN_TIMEOUT_MS);
+    Right.configSelectedFeedbackSensor(FeedbackDevice.QuadEncoder, PID_IDX, CAN_TIMEOUT_MS);
+
     Left.setSensorPhase(true);
+    Right.setSensorPhase(true);
     // LeftStick = new Joystick(1);
     // RightStick = new Joystick(5);
   }
 
+  // public void robotPeriodic() {
+  //   // System.out.println("Time since start = " + Time);
+  //   // Time++;
+  // }
+
   @Override
   public void teleopPeriodic() {
+    // System.out.println("We are in teleopPeriodic");
 
-    System.out.println("Right Y value = " + getRightY() + ", left Y value = " + getLeftY());
+    // System.out.println("Right Y value = " + getRightY() + ", left Y value = " + getLeftY());
 
     // m_myRobot.tankDrive(LeftStick.getY(), RightStick.getY());
     Left.set(ControlMode.PercentOutput, getLeftY());
-    Right.set(ControlMode.PercentOutput, getRightY());
+    Right.set(ControlMode.PercentOutput, -getRightY());
+
+    Left.getSelectedSensorPosition(PID_IDX);
+    encoderPositionTele = Right.getSelectedSensorPosition(PID_IDX);
+
+    System.out.println("Right encoder pos = " + encoderPositionTele);
   }
 
   @Override
   public void autonomousInit() {
-    Left.setInverted(false);
+    System.out.println("We are in autonomousInit");
 
-    PathFinderCommand(false, false, 24, 1);
+    PathFinderCommand(false, 1);
   }
 
   @Override
   public void autonomousPeriodic() {
+    // System.out.println("We are in autonomousPeriodic");
+
+    Left_Encoder_Pos = Left.getSelectedSensorPosition(PID_IDX);
+    Right_Encoder_Pos = Right.getSelectedSensorPosition(PID_IDX);
 
     outputLeft = leftEncFollower.calculate(Left_Encoder_Pos);
     outputRight = rightEncFollower.calculate(Right_Encoder_Pos);
 
+    // System.out.println("Right side encoder pos = " + Right_Encoder_Pos);
+
+    // System.out.println("Left side output = " + outputLeft);
+    // System.out.println("Right side output = " + outputRight);
+
     Left.getFaults(Faults);
+    Right.getFaults(Faults);
 
     Left.set(ControlMode.PercentOutput, outputLeft);
     Right.set(ControlMode.PercentOutput, outputRight);
@@ -169,14 +211,14 @@ public class Robot extends TimedRobot {
     
   }
 
-  public double getPositionInches() {
-    return Left.getSelectedSensorPosition(PID_IDX);
-  }
+  // public double getPositionInches() {
+  //   return Left.getSelectedSensorPosition(PID_IDX);
+  // }
 
   // All of these are the possible path values
   public static int ForwardTenFeet = 1;
 
-  private static boolean LeftOrRight;
+  // private static boolean LeftOrRight;
   private static boolean WhatGearAreWeIn;
 
   public static EncoderFollower leftEncFollower;
@@ -184,15 +226,14 @@ public class Robot extends TimedRobot {
 
   public static Waypoint[] points;
 
-  public void PathFinderCommand(boolean RightOrLeft, boolean WhichGearAreWeIn, double a, int whatPath) {
+  public void PathFinderCommand(boolean WhichGearAreWeIn, int whatPath) {
     //requires(Robot.drivebase);
     //requires(Robot.pathfinder);
     System.out.println("We are in PathfinderCommand");
     // this.setInterruptible(false);
     //System.out.println("we are in the constructor");
-    this.LeftOrRight = RightOrLeft;
     this.WhatGearAreWeIn = WhichGearAreWeIn;
-    this.Left_To_Right_Offset_Inches = a;
+    // this.Left_To_Right_Offset_Inches = a;
     this.whatPath = whatPath;
 
     if (whatPath == ForwardTenFeet)
@@ -202,9 +243,13 @@ public class Robot extends TimedRobot {
           new Waypoint(10, 0, 0)
         };
       }
+    
+    System.out.println("We have a path");
 
     Trajectory.Config config = new Trajectory.Config(Trajectory.FitMethod.HERMITE_CUBIC, Trajectory.Config.SAMPLES_HIGH, 0.05, 1.7, 2.0, 60.0);
     Trajectory trajectory = Pathfinder.generate(points, config);
+
+    System.out.println("We have a Trajectory");
 
     // Wheelbase Width = 0.5m
     TankModifier modifier = new TankModifier(trajectory).modify(0.5);
@@ -217,16 +262,16 @@ public class Robot extends TimedRobot {
     rightEncFollower = new EncoderFollower(modifier.getRightTrajectory());
 
     // Determine whether the encoder position is the left or right encoder position.
-    if(LeftOrRight)
-    {
-      Left_Encoder_Pos = (int) (Math.round(Encoder_Pos) + Left_To_Right_Offset_Inches);
-      Right_Encoder_Pos = (int) (Math.round(Encoder_Pos));
-    }
-    else
-    {
-      Left_Encoder_Pos = (int) (Math.round(Encoder_Pos));
-      Right_Encoder_Pos = (int) (Math.round(Encoder_Pos) + Left_To_Right_Offset_Inches);
-    }
+    // if(LeftOrRight)
+    // {
+      // Left_Encoder_Pos = (int) Encoder_Pos; // + Left_To_Right_Offset_Inches);
+      // Right_Encoder_Pos = (int) Encoder_Pos;
+    // }
+    // else
+    // {
+      // Left_Encoder_Pos = (int) (Math.round(Encoder_Pos));
+      // Right_Encoder_Pos = (int) (Math.round(Encoder_Pos) + Left_To_Right_Offset_Inches);
+    // }
 
     leftEncFollower.configureEncoder(Left_Encoder_Pos, 1000, wheel_diameter);
     rightEncFollower.configureEncoder(Right_Encoder_Pos, 1000, wheel_diameter);
@@ -241,8 +286,8 @@ public class Robot extends TimedRobot {
       Top_Speed = 2;
     }
 
-    leftEncFollower.configurePIDVA(1.0, 0.0, 0.0, 1 / Top_Speed, 0);
-    rightEncFollower.configurePIDVA(1.0, 0.0, 0.0, 1 / Top_Speed, 0);
+    leftEncFollower.configurePIDVA(lP, lI, lD, lV / Top_Speed, lA);
+    rightEncFollower.configurePIDVA(rP, rI, rD, rV / Top_Speed, rA);
   }
 
 }
