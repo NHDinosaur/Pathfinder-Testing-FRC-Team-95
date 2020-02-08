@@ -54,6 +54,7 @@ public class Robot extends TimedRobot {
 
   private int leftCanNum = 10;
   private int lFollowerCanNum1 = 11;
+  private int useless = 0;
   private int lFollowerCanNum2 = 12;
   private int rightCanNum = 20;
   private int rFollowerCanNum1 = 21;
