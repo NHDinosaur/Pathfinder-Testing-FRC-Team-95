@@ -52,6 +52,10 @@ public class Robot extends TimedRobot {
 
   private Faults Faults = new Faults();
 
+  private double Threshold = 0.01;
+  private double LeftY;
+  private double RightY;
+
   private int leftCanNum = 10;
   private int lFollowerCanNum1 = 11;
   private int useless = 0;
@@ -113,6 +117,8 @@ public class Robot extends TimedRobot {
     Left.configSelectedFeedbackSensor(FeedbackDevice.QuadEncoder, PID_IDX, CAN_TIMEOUT_MS);
     Right.configSelectedFeedbackSensor(FeedbackDevice.QuadEncoder, PID_IDX, CAN_TIMEOUT_MS);
 
+    System.out.println("encoders have been selected");
+
     Left.setSensorPhase(true);
     Right.setSensorPhase(true);
     // LeftStick = new Joystick(1);
@@ -131,8 +137,37 @@ public class Robot extends TimedRobot {
     // System.out.println("Right Y value = " + getRightY() + ", left Y value = " + getLeftY());
 
     // m_myRobot.tankDrive(LeftStick.getY(), RightStick.getY());
-    Left.set(ControlMode.PercentOutput, getLeftY());
-    Right.set(ControlMode.PercentOutput, -getRightY());
+
+    LeftY = getLeftY();
+    RightY = getRightY();
+
+    if(LeftY >= Threshold)
+    {
+      Left.set(ControlMode.PercentOutput, getLeftY());
+    }
+    else if(LeftY <= Threshold)
+    {
+      Left.set(ControlMode.PercentOutput, getLeftY());
+    }
+    else
+    {
+      Left.set(ControlMode.Disabled, getLeftY());
+    }
+
+    if(RightY >= Threshold)
+    {
+      Right.set(ControlMode.PercentOutput, -getRightY());
+    }
+    else if(RightY <= Threshold)
+    {
+      Right.set(ControlMode.PercentOutput, -getRightY());
+    }
+    else 
+    {
+      Right.set(ControlMode.Disabled, -getRightY());
+    }
+    
+    
 
     Left.getSelectedSensorPosition(PID_IDX);
     encoderPositionTele = Right.getSelectedSensorPosition(PID_IDX);
@@ -154,6 +189,9 @@ public class Robot extends TimedRobot {
     Left_Encoder_Pos = Left.getSelectedSensorPosition(PID_IDX);
     Right_Encoder_Pos = Right.getSelectedSensorPosition(PID_IDX);
 
+    // System.out.println("current left sensor position = " + Left_Encoder_Pos);
+    // System.out.println("current right sensor position = " + Right_Encoder_Pos);
+
     outputLeft = leftEncFollower.calculate(Left_Encoder_Pos);
     outputRight = rightEncFollower.calculate(Right_Encoder_Pos);
 
@@ -166,7 +204,7 @@ public class Robot extends TimedRobot {
     Right.getFaults(Faults);
 
     Left.set(ControlMode.PercentOutput, outputLeft);
-    Right.set(ControlMode.PercentOutput, outputRight);
+    // Right.set(ControlMode.PercentOutput, outputRight);
     // System.out.println("We are in auto periodic");
 
     // Left.set(ControlMode.PercentOutput, 20);
@@ -241,13 +279,16 @@ public class Robot extends TimedRobot {
       {
         points = new Waypoint[] {
           new Waypoint(0, 0, 0),
-          new Waypoint(10, 0, 0)
+          new Waypoint(20, 35, 10)
         };
       }
     
     System.out.println("We have a path");
 
-    Trajectory.Config config = new Trajectory.Config(Trajectory.FitMethod.HERMITE_CUBIC, Trajectory.Config.SAMPLES_HIGH, 0.05, 1.7, 2.0, 60.0);
+    Trajectory.Config config = new Trajectory.Config(Trajectory.FitMethod.HERMITE_CUBIC, Trajectory.Config.SAMPLES_FAST, 0.05, 1.7, 2.0, 60.0);
+    
+    System.out.println("config has run");
+    
     Trajectory trajectory = Pathfinder.generate(points, config);
 
     System.out.println("We have a Trajectory");
@@ -261,6 +302,8 @@ public class Robot extends TimedRobot {
 
     leftEncFollower = new EncoderFollower(modifier.getLeftTrajectory());
     rightEncFollower = new EncoderFollower(modifier.getRightTrajectory());
+
+    System.out.println("the encoder followers have recieved a command");
 
     // Determine whether the encoder position is the left or right encoder position.
     // if(LeftOrRight)
